@@ -1,0 +1,19 @@
+[project]
+name = "omnicloud-resilience"
+version = "0.1.0"
+description = "a comparative study of multi-cloud failover"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pulumi-aws>=6.0,<7.0",
+    "pulumi-azure-native>=2.0,<3.0",
+    "pulumi-gcp>=7.0,<8.0",
+    "pulumi>=3.0,<4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest-asyncio>=0.21,<0.22",
+    "pytest>=7.0,<8.0",
+    "ruff>=0.15,<0.16",
+]

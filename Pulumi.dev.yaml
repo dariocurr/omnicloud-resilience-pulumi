@@ -1,0 +1,8 @@
+config:
+  omnicloud-resilience:domain_name: example.com
+  omnicloud-resilience:environment: dev
+  omnicloud-resilience:enable_azure_backup: true
+  aws:profile: dariocurr
+  aws:region: us-east-1
+  azure-native:location: eastus
+  gcp:project: omnicloud-resilience

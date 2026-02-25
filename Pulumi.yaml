@@ -1,0 +1,3 @@
+name: omnicloud-resilience
+runtime: python
+description: Multi-cloud showcase (AWS, Azure, GCP) with ComponentResources and software engineering patterns
