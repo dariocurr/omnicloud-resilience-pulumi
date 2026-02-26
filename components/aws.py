@@ -81,12 +81,20 @@ class AwsInfra(pulumi.ComponentResource):
 
         # OAC (recommended over legacy OAI): CloudFront signs requests; S3 allows only
         # that identity, so the bucket stays non-public.
+        # retain_on_delete=True avoids AWS 409 OriginAccessControlInUse on destroy:
+        # the distribution is deleted first (via depends_on), but AWS may still
+        # reference the OAC briefly; retaining skips the delete API and removes
+        # from state only. Orphan OAC can be deleted manually in AWS if desired.
+        pac_opts = pulumi.ResourceOptions(
+            parent=self,
+            retain_on_delete=True,
+        )
         oac = aws.cloudfront.OriginAccessControl(
             resource_name=f"{name}-oac",
             origin_access_control_origin_type="s3",
             signing_behavior="always",
             signing_protocol="sigv4",
-            opts=child_opts,
+            opts=pac_opts,
         )
 
         # Create the CloudFront distribution.
@@ -136,6 +144,12 @@ class AwsInfra(pulumi.ComponentResource):
 
         # Create the CloudFront distribution.
         # This is needed to serve the static website from the S3 bucket.
+        # Explicit depends_on so destroy order is correct: distribution is deleted
+        # before the OAC (AWS returns 409 OriginAccessControlInUse otherwise).
+        distribution_opts = pulumi.ResourceOptions(
+            parent=self,
+            depends_on=[oac],
+        )
         self.distribution = aws.cloudfront.Distribution(
             resource_name=f"{name}-cdn",
             enabled=True,
@@ -143,7 +157,7 @@ class AwsInfra(pulumi.ComponentResource):
             default_cache_behavior=default_cache_behavior,
             restrictions=restrictions,
             viewer_certificate=viewer_certificate,
-            opts=child_opts,
+            opts=distribution_opts,
         )
 
         # Exposed as Output[str] so GCP DNS (or other stacks) can use as CNAME target.
