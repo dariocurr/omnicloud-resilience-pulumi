@@ -1,7 +1,13 @@
 config:
   omnicloud-resilience:domain_name: example.com
   omnicloud-resilience:environment: dev
+  omnicloud-resilience:aws_bucket_name: aws-omnicloud-resilience-dev
   omnicloud-resilience:enable_azure_backup: true
+  omnicloud-resilience:project_name: omnicloud-resilience
+  omnicloud-resilience:enable_public_access_block: true
+  omnicloud-resilience:backup_retention_days: 30
+  omnicloud-resilience:gcp_primary_ttl: 300
+  omnicloud-resilience:gcp_backup_ttl: 60
   aws:profile: dariocurr
   aws:region: us-east-1
   azure-native:location: eastus

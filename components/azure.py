@@ -19,9 +19,6 @@ from components._helpers import sanitize_storage_account_name
 
 ID: str = "omnicloud:azure:AzureInfra"
 
-# Soft-delete retention period when enable_backup is True (blob + container).
-BACKUP_RETENTION_DAYS: int = 30
-
 
 class AzureInfra(pulumi.ComponentResource):
     """
@@ -35,6 +32,7 @@ class AzureInfra(pulumi.ComponentResource):
         self,
         name: str,
         enable_backup: bool = False,
+        backup_retention_days: int = 30,
     ):
         """
         Create the resource group, storage account, and static website.
@@ -44,16 +42,14 @@ class AzureInfra(pulumi.ComponentResource):
                 child resources. Storage account name is sanitized (alphanumeric,
                 max 24 chars) via sanitize_storage_account_name.
             enable_backup: If True, enable blob and container soft-delete for
-                BACKUP_RETENTION_DAYS so deleted data can be recovered.
+                backup_retention_days so deleted data can be recovered.
+            backup_retention_days: Retention in days when enable_backup is True.
 
         Outputs (set on self, registered for the component):
             primary_endpoint: HTTPS URL base for the static website (e.g. for
                 GCP backup CNAME or stack exports).
         """
-        super().__init__(
-            ID,
-            name,
-        )
+        super().__init__(ID, name)
 
         # Child resources get parent=self so Pulumi builds a proper hierarchy:
         # lifecycle order (e.g. destroy StorageAccount before BlobServiceProperties)
@@ -101,11 +97,11 @@ class AzureInfra(pulumi.ComponentResource):
             opts=child_opts,
         )
 
-        # Soft-delete keeps blobs/containers recoverable for BACKUP_RETENTION_DAYS.
+        # Soft-delete keeps blobs/containers recoverable for backup_retention_days.
         if enable_backup:
             retention = azure_native.storage.DeleteRetentionPolicyArgs(
                 enabled=True,
-                days=BACKUP_RETENTION_DAYS,
+                days=backup_retention_days,
             )
             azure_native.storage.BlobServiceProperties(
                 resource_name=f"{name}-backup",

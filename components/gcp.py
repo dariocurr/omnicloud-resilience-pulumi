@@ -42,6 +42,8 @@ class GcpInfra(pulumi.ComponentResource):
         domain_name: str,
         primary_target: DnsTarget,
         backup_target: DnsTarget | None = None,
+        primary_ttl: int = 300,
+        backup_ttl: int = 60,
     ):
         """
         Create the managed zone and CNAME record set(s).
@@ -54,16 +56,16 @@ class GcpInfra(pulumi.ComponentResource):
                 Output[str], e.g. from AWS CloudFront's domain_name.
             backup_target: Optional CNAME target for backup.<domain_name>, e.g.
                 Azure static-website host for failover.
+            primary_ttl: TTL in seconds for the primary (www) CNAME record.
+            backup_ttl: TTL in seconds for the backup CNAME record.
 
         Outputs (set on self, registered for the component):
             name_servers: Zone name servers; delegate the domain to these at
                 the registrar.
             primary_record: The primary CNAME RecordSetArgs (for reference).
         """
-        super().__init__(
-            ID,
-            name,
-        )
+        super().__init__(ID, name)
+
         child_opts = pulumi.ResourceOptions(parent=self)
 
         # Trailing dot required by Cloud DNS for zone FQDN.
@@ -76,13 +78,14 @@ class GcpInfra(pulumi.ComponentResource):
             opts=child_opts,
         )
 
+        # Primary CNAME record: www.<domain> → primary_target (e.g. CloudFront domain).
         primary_name = fqdn(domain_name, "www")
         rrdatas = pulumi.Output.from_input(primary_target).apply(cname_rrdata)
         self.primary_record = gcp.dns.RecordSetArgs(
             name=primary_name,
             managed_zone=zone.name,
             type="CNAME",
-            ttl=300,
+            ttl=primary_ttl,
             rrdatas=rrdatas,
         )
 
@@ -95,7 +98,7 @@ class GcpInfra(pulumi.ComponentResource):
                 name=backup_name,
                 managed_zone=zone.name,
                 type="CNAME",
-                ttl=60,
+                ttl=backup_ttl,
                 rrdatas=rrdatas,
                 opts=child_opts,
             )

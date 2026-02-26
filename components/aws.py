@@ -36,6 +36,7 @@ class AwsInfra(pulumi.ComponentResource):
     def __init__(
         self,
         name: str,
+        bucket_name: str,
         enable_public_access_block: bool = True,
     ):
         """
@@ -43,7 +44,8 @@ class AwsInfra(pulumi.ComponentResource):
 
         Args:
             name: Pulumi resource name for the bucket and related resources
-                (e.g. bucket id, OAC, distribution).
+                (e.g. OAC, distribution).
+            bucket_name: AWS S3 bucket name (must be globally unique).
             enable_public_access_block: If True (default), apply
                 S3_BLOCK_PUBLIC_ACCESS so the bucket cannot be made public.
 
@@ -54,18 +56,16 @@ class AwsInfra(pulumi.ComponentResource):
                 distribution (for alias records if needed).
             cloudfront_url: HTTPS URL of the distribution.
         """
-        super().__init__(
-            ID,
-            name,
-        )
+        super().__init__(ID, name)
 
         # Child resources get parent=self so Pulumi builds a proper hierarchy:
         # lifecycle order (e.g. destroy CloudFront before bucket) and UI grouping.
         child_opts = pulumi.ResourceOptions(parent=self)
 
-        # Create the S3 bucket
+        # Create the S3 bucket.
         self.bucket = aws.s3.Bucket(
             resource_name=name,
+            bucket=bucket_name,
             opts=child_opts,
         )
 
@@ -134,7 +134,6 @@ class AwsInfra(pulumi.ComponentResource):
         restrictions = aws.cloudfront.DistributionRestrictionsArgs(
             geo_restriction=geo_restriction,
         )
-
         # Create the CloudFront viewer certificate.
         # This is needed to ensure that the CloudFront distribution can only be accessed
         # over HTTPS.

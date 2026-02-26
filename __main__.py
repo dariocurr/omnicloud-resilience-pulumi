@@ -21,6 +21,10 @@ from components import AwsInfra, AzureInfra, GcpInfra
 from config import StackConfig
 
 
+def _component_name(project_name: str, environment: str, prefix: str) -> str:
+    return f"{prefix}-{project_name}-{environment}"
+
+
 def main():
     """
     Build AWS, Azure, and GCP components and export stack outputs.
@@ -29,50 +33,42 @@ def main():
     each cloud component, chains AWS and Azure outputs into GCP as primary and
     backup CNAME targets, and exports the main URLs and GCP name servers.
     """
-    project_name = "omnicloud-resilience"
     config = StackConfig.from_pulumi_config(pulumi.Config())
 
-    # AWS is primary origin; CloudFront domain is used as GCP DNS CNAME target.
-    aws_name = f"aws-{project_name}-{config.environment}"
+    def name(prefix: str) -> str:
+        return _component_name(config.project_name, config.environment, prefix)
+
     aws = AwsInfra(
-        name=aws_name,
-        enable_public_access_block=True,
+        name=name("aws"),
+        bucket_name=config.aws_bucket_name,
+        enable_public_access_block=config.enable_public_access_block,
     )
 
-    azure_name = f"azure-{project_name}-{config.environment}"
     azure = AzureInfra(
-        name=azure_name,
+        name=name("azure"),
         enable_backup=config.enable_azure_backup,
+        backup_retention_days=config.backup_retention_days,
     )
 
-    # Extract host from Azure static-website URL for GCP backup CNAME (e.g. failover).
     backup_host = azure.primary_endpoint.apply(
         lambda url: url.replace("https://", "").split("/")[0]
     )
-    gcp_name = f"gcp-{project_name}-{config.environment}"
     gcp = GcpInfra(
-        name=gcp_name,
+        name=name("gcp"),
         domain_name=config.domain_name,
         primary_target=aws.cloudfront_domain_name,
         backup_target=backup_host,
+        primary_ttl=config.gcp_primary_ttl,
+        backup_ttl=config.gcp_backup_ttl,
     )
 
-    pulumi.export(
-        "aws_cloudfront_url",
-        aws.cloudfront_url,
-    )
-    pulumi.export(
-        "aws_cloudfront_domain",
-        aws.cloudfront_domain_name,
-    )
-    pulumi.export(
-        "azure_primary_endpoint",
-        azure.primary_endpoint,
-    )
-    pulumi.export(
-        "gcp_name_servers",
-        gcp.name_servers,
-    )
+    for output_name, value in [
+        ("aws_cloudfront_url", aws.cloudfront_url),
+        ("aws_cloudfront_domain", aws.cloudfront_domain_name),
+        ("azure_primary_endpoint", azure.primary_endpoint),
+        ("gcp_name_servers", gcp.name_servers),
+    ]:
+        pulumi.export(output_name, value)
 
 
 if __name__ == "__main__":

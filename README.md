@@ -1,8 +1,10 @@
 # Omnicloud Resilience (Pulumi)
 
-resilient static hosting with a primary (AWS S3 + CloudFront) and backup (Azure Storage) origin,
+resilient static hosting with a primary
+(AWS S3 + CloudFront) and backup (Azure Storage) origin,
 and GCP Cloud DNS for failover routing—implemented
-with Pulumi as software engineering (ComponentResources, typing, config, output chaining, tests).
+with Pulumi as software engineering
+(ComponentResources, typing, config, output chaining, tests).
 
 ## Architecture
 
@@ -17,7 +19,7 @@ with Pulumi as software engineering (ComponentResources, typing, config, output 
 - **ComponentResources** - Each cloud is encapsulated in its own class (`AwsInfra`, `AzureInfra`, `GcpInfra`) under `components/`.
 - **Strong typing** - Python type hints throughout (e.g. `Output[str]`, `Optional[pulumi.ResourceOptions]`).
 - **Output chaining** - AWS CloudFront domain (`Output[str]`) is passed into the GCP component as the primary DNS target.
-- **Config** - `pulumi.Config()` for `domain_name`, `environment`, and `enable_azure_backup` (toggle Azure backup on/off).
+- **Config** - All settings from `pulumi.Config()` (Pulumi.<stack>.yaml or CLI); `domain_name` required, others optional with defaults.
 - **Logic** - `enable_azure_backup` drives a conditional that creates `BlobServiceProperties` (soft delete) only when true.
 - **Testing** - Pure unit tests for helpers only (no mocks).
 
@@ -74,10 +76,18 @@ This removes the stack’s resources in dependency order
 uv run pytest tests -v
 ```
 
-## Config (Pulumi.dev.yaml / CLI)
+## Config (mandatory – Pulumi.dev.yaml / CLI)
+
+All settings are required and must be set in `Pulumi.<stack>.yaml` or via `pulumi config set <key> <value>`.
 
 | Key | Description |
 | --- | ----------- |
 | `domain_name` | Domain for GCP DNS (e.g. `example.com`) |
 | `environment` | Environment label (e.g. `dev`) |
-| `enable_azure_backup` | `true` / `false` - toggles Azure blob/container soft-delete (30 days) |
+| `aws_bucket_name` | AWS S3 bucket name (globally unique) |
+| `enable_azure_backup` | Enable Azure blob/container soft-delete (`true` / `false`) |
+| `project_name` | Project name used in resource naming |
+| `enable_public_access_block` | S3 Block Public Access (`true` / `false`) |
+| `backup_retention_days` | Azure soft-delete retention (days, integer) |
+| `gcp_primary_ttl` | TTL (seconds) for primary (www) CNAME |
+| `gcp_backup_ttl` | TTL (seconds) for backup CNAME |
